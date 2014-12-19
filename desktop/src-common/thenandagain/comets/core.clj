@@ -8,7 +8,9 @@
   :on-show
   (fn [screen entities]
     (update! screen :renderer (stage))
-    (label "Hello world!" (color :white)))
+    [(shape :line
+            :set-color (color :green)
+            :arc 100 100 20 240 60)])
   
   :on-render
   (fn [screen entities]
@@ -19,9 +21,7 @@
   (fn [screen entites]
     (cond
       (key-pressed? :r)
-      (on-gl (set-screen! comets main-screen)))
-
-    ))
+      (on-gl (set-screen! comets main-screen)))))
 
 (defgame comets
   :on-create
