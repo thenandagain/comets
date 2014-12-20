@@ -4,6 +4,15 @@
 
 (declare comets main-screen)
 
+(defn directional-vector [m angle]
+  (let [rads (Math/toRadians angle)]
+    {:dx (* m (Math/cos rads)) :dy (* m (Math/sin rads))}))
+
+(defn update-position [e]
+  (-> e
+      (assoc :x (+ (:x e) (get-in e [:speed :dx] 0)))
+      (assoc :y (+ (:y e) (get-in e [:speed :dy] 0)))))
+
 (defn update-player [entities]
   (map (fn [e]
          (if (:player? e)
@@ -13,13 +22,13 @@
                           ; considered pressed at any one time. needs to be
                           ; redone
                           (key-pressed? :dpad-up)
-                          (assoc e :speed (+ (:speed e) (:acceleration e)))
+                          (let [v (directional-vector (:acceleration e)
+                                                      (+ 90 (:angle e)))]
 
-                          (key-pressed? :dpad-down)
-                          (assoc e :speed (- (:speed e) (:acceleration e)))
+                            (update-in e [:speed] (fn [s]
+                                                  {:dx (+ (:dx s) (:dx v))
+                                                   :dy (+ (:dy s) (:dy v))})))
 
-                          ; Currently rotates around the point of the arc,
-                          ; not the 'center'.
                           (key-pressed? :dpad-left)
                           (assoc e :angle (+ (:angle e) 5))
 
@@ -28,7 +37,7 @@
 
                           :defalt
                           e)))
-               (assoc :x (+ (:x e) (:speed e 0))))
+                update-position)
            e)) entities))
 
 (defscreen main-screen
@@ -37,12 +46,12 @@
     (update! screen :renderer (stage))
     [(assoc (shape :line
                    :set-color (color :green)
-                   :arc 0 0 20 240 60)
+                   :arc 0 10 20 240 60)
             :player? true
             :x 100
             :y 100
-            :angle 0
-            :speed 0.1
+            :angle 270
+            :speed {:dx 0.1, :dy 0.1}
             :acceleration 0.1
             )])
 
