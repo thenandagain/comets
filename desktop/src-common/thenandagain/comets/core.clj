@@ -1,44 +1,53 @@
 (ns thenandagain.comets.core
   (:require [play-clj.core :refer :all]
-            [play-clj.g2d-physics :refer :all]))
+            [play-clj.g2d-physics :refer :all]
+            [play-clj.math :as math]))
 
 (declare comets main-screen)
 
 (defn directional-vector [m angle]
   (let [rads (Math/toRadians angle)]
-    {:dx (* m (Math/cos rads)) :dy (* m (Math/sin rads))}))
+    (math/vector-2 (* m (Math/cos rads)) (* m (Math/sin rads)))))
 
 (defn update-position [e]
   (-> e
-      (assoc :x (+ (:x e) (get-in e [:speed :dx] 0)))
-      (assoc :y (+ (:y e) (get-in e [:speed :dy] 0)))))
+      (assoc :x (+ (:x e) (x (:speed e))))
+      (assoc :y (+ (:y e) (y (:speed e))))))
+
+(def player-updates
+  [
+   (fn accelerate [e]
+     (if (key-pressed? :dpad-up)
+       (let [v (directional-vector (:thrust e)
+                                   (+ 90 (:angle e)))]
+
+         (assoc e :speed (math/vector-2 0 0
+                                        :add (:speed e)
+                                        :add v
+                                        )))))
+
+   (fn rotate-left [e]
+     (if (key-pressed? :dpad-left)
+       (assoc e :angle (+ (:angle e) 5))))
+
+   (fn rotate-right [e]
+     (if (key-pressed? :dpad-right)
+       (assoc e :angle (- (:angle e) 5))))
+   ])
 
 (defn update-player [entities]
   (map (fn [e]
          (if (:player? e)
-           (-> e
-               ((fn [e] (cond
-                          ; with this implementation, only one key will be 
-                          ; considered pressed at any one time. needs to be
-                          ; redone
-                          (key-pressed? :dpad-up)
-                          (let [v (directional-vector (:acceleration e)
-                                                      (+ 90 (:angle e)))]
+           (reduce (fn [p update]
+                     (if-let [new-p (update p)]
+                       new-p
+                       p))
+                   e
+                   player-updates)
+           e))
+       entities))
 
-                            (update-in e [:speed] (fn [s]
-                                                  {:dx (+ (:dx s) (:dx v))
-                                                   :dy (+ (:dy s) (:dy v))})))
 
-                          (key-pressed? :dpad-left)
-                          (assoc e :angle (+ (:angle e) 5))
-
-                          (key-pressed? :dpad-right)
-                          (assoc e :angle (- (:angle e) 5))
-
-                          :defalt
-                          e)))
-                update-position)
-           e)) entities))
 
 (defscreen main-screen
   :on-show
@@ -51,19 +60,20 @@
             :x 100
             :y 100
             :angle 270
-            :speed {:dx 0.1, :dy 0.1}
-            :acceleration 0.1
+            :speed (math/vector-2 0.1 0.1)
+            :thrust 0.1
             )])
 
   :on-render
   (fn [screen entities]
     (clear!)
     (->> entities
-         (update-player)
+         update-player
+         (map update-position)
          (render! screen)))
 
   :on-key-down
-  (fn [screen entites]
+  (fn [screen entities]
     (cond
       (key-pressed? :r)
       (on-gl (set-screen! comets main-screen)))))
