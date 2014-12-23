@@ -82,3 +82,21 @@
   :on-create
   (fn [this]
     (set-screen! this main-screen)))
+
+
+(defscreen blank-screen
+  :on-render
+  (fn [screen entities]
+    (clear!))
+
+  :on-key-down
+  (fn [screen entities]
+    (cond
+      (key-pressed? :r)
+      (on-gl (set-screen! comets main-screen)))))
+
+(set-screen-wrapper! (fn [screen screen-fn]
+                       (try (screen-fn)
+                            (catch Exception e
+                              (.printStackTrace e)
+                              (set-screen! comets blank-screen)))))
