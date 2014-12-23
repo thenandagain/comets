@@ -71,7 +71,7 @@
     (concat (repeatedly 10 generate-a-comet)
             [(assoc (shape :line
                            :set-color (color :green)
-                           :arc 0 10 20 240 60)
+                           :triangle 0 10, 8 -10, -8 -10)
                     :player? true
                     :x 100
                     :y 100
