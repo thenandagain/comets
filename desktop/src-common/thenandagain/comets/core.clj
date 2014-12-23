@@ -1,7 +1,8 @@
 (ns thenandagain.comets.core
   (:require [play-clj.core :refer :all]
             [play-clj.g2d-physics :refer :all]
-            [play-clj.math :as math]))
+            [play-clj.math :as math])
+  (:import [java.util UUID]))
 
 (declare comets main-screen)
 
@@ -10,9 +11,11 @@
     (math/vector-2 (* m (Math/cos rads)) (* m (Math/sin rads)))))
 
 (defn update-position [e]
-  (-> e
-      (assoc :x (+ (:x e) (x (:speed e))))
-      (assoc :y (+ (:y e) (y (:speed e))))))
+  (if-let [speed (:speed e)]
+    (-> e
+        (assoc :x (+ (:x e) (x speed)))
+        (assoc :y (+ (:y e) (y speed))))
+    e))
 
 (def player-updates
   [
@@ -47,22 +50,35 @@
            e))
        entities))
 
-
+(defn generate-a-comet []
+  (let [id (UUID/randomUUID)
+        x-off (rand 200)
+        y-off (rand 150)]
+           (assoc (shape :line
+                         :set-color (color :white)
+                         :circle 0.0 0.0 20.0)
+                  :id id
+                  :x (+ 200.0 x-off)
+                  :y (+ 150.0 y-off)
+                  :speed (math/vector-2 (rand 1.5) (rand 1.5))
+                  :angle (rand 360)
+                  :comet? true)))
 
 (defscreen main-screen
   :on-show
   (fn [screen entities]
     (update! screen :renderer (stage))
-    [(assoc (shape :line
-                   :set-color (color :green)
-                   :arc 0 10 20 240 60)
-            :player? true
-            :x 100
-            :y 100
-            :angle 270
-            :speed (math/vector-2 0.1 0.1)
-            :thrust 0.1
-            )])
+    (concat (repeatedly 10 generate-a-comet)
+            [(assoc (shape :line
+                           :set-color (color :green)
+                           :arc 0 10 20 240 60)
+                    :player? true
+                    :x 100
+                    :y 100
+                    :angle 270
+                    :speed (math/vector-2 0.1 0.1)
+                    :thrust 0.1
+                    )]))
 
   :on-render
   (fn [screen entities]
