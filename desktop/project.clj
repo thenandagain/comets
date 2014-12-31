@@ -1,7 +1,8 @@
 (defproject thenandagain/comets "0.0.1-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "An Asteroids clone, with a twist?"
   
-  :dependencies [[com.badlogicgames.gdx/gdx "1.5.0"]
+  :dependencies [[org.clojure/clojure "1.6.0"]
+                 [com.badlogicgames.gdx/gdx "1.5.0"]
                  [com.badlogicgames.gdx/gdx-backend-lwjgl "1.5.0"]
                  [com.badlogicgames.gdx/gdx-box2d "1.5.0"]
                  [com.badlogicgames.gdx/gdx-box2d-platform "1.5.0"
@@ -11,8 +12,7 @@
                   :classifier "natives-desktop"]
                  [com.badlogicgames.gdx/gdx-platform "1.5.0"
                   :classifier "natives-desktop"]
-                 [org.clojure/clojure "1.6.0"]
-                 [play-clj "0.4.3-SNAPSHOT"]]
+                 [play-clj "0.4.3"]]
   
   :source-paths ["src" "src-common"]
   :test-paths ["test-common"]
