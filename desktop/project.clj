@@ -15,6 +15,7 @@
                  [play-clj "0.4.3-SNAPSHOT"]]
   
   :source-paths ["src" "src-common"]
+  :test-paths ["test-common"]
   :javac-options ["-target" "1.6" "-source" "1.6" "-Xlint:-options"]
   :aot [thenandagain.comets.core.desktop-launcher]
   :main thenandagain.comets.core.desktop-launcher)
