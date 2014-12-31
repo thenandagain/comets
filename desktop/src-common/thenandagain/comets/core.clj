@@ -1,5 +1,6 @@
 (ns thenandagain.comets.core
   (:require [play-clj.core :refer :all]
+            [play-clj.ui :refer :all]
             [play-clj.g2d-physics :refer :all]
             [play-clj.math :as math])
   (:import [java.util UUID]))
@@ -101,9 +102,15 @@
 
 
 (defscreen blank-screen
+  :on-show
+  (fn [screen entities]
+    (update! screen :renderer  (stage))
+    (label "Danger Will Robinson! Danger!" (color :red))
+    )
   :on-render
   (fn [screen entities]
-    (clear!))
+    (clear!)
+    (render! screen entities))
 
   :on-key-down
   (fn [screen entities]
