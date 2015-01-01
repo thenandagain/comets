@@ -6,7 +6,9 @@
   (get-components [system e-id])
   (get-component  [system e-id c] [system e-id k not-found])
   (entities-with-component [system c])
-  (all-components [system]))
+  (all-components [system])
+  (remove-component [system e-id c])
+  (remove-entity [system e-id]))
 
 (defn create-entity []
   (UUID/randomUUID))
@@ -23,10 +25,10 @@
     (let [k (component-type c)]
       (->EntityComponentSystem
         (assoc-in entity->components [e-id k] (with-meta c {:e-id e-id}))
-        (update-in component->entities [k] #(if % (conj % e-id) [e-id])))))
+        (update-in component->entities [k] #(if % (conj % e-id) #{e-id})))))
 
   (get-components [_ e-id]
-    (get entity->components e-id))
+    (vals (get entity->components e-id)))
 
   (get-component [s e-id c]
     (get-component s e-id c nil))
@@ -38,12 +40,35 @@
     (get component->entities c))
 
   (all-components [_]
-    (concat (vals entity->components))))
+    (mapcat #(vals (second %)) entity->components))
+
+  (remove-component [_ e-id c]
+    (->EntityComponentSystem (update-in entity->components  [e-id] #(dissoc % c))
+                             (update-in component->entities [c]    #(disj % e-id))))
+  (remove-entity [_ e-id]
+    (let [cs (map #(class (second %)) (get entity->components e-id))]
+      (->EntityComponentSystem
+        (dissoc entity->components e-id)
+        (reduce (fn [c->e c]
+                  (update-in component->entities [c] #(disj % e-id)))
+                component->entities
+                cs)))))
 
 (defn update-component [system e-id c f & args]
-  (add-component system
-                 e-id
-                 (apply f (get-component system e-id c) args)))
+  (let [new-component (apply f (get-component system e-id c) args)]
+    (if (= (class new-component) c)
+      (add-component system e-id new-component)
+      (throw (Exception.
+               (str "Update function expected to return `"
+                    c
+                    "` but returned `"
+                    (class new-component)
+                    "`"))))))
+
+(defn add-components [system e-id components]
+  (reduce (fn [s c]
+            (add-component s e-id c))
+          components))
 
 (defn create-system []
   (->EntityComponentSystem {} {}))

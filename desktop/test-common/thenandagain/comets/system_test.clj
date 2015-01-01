@@ -13,7 +13,9 @@
                      (add-component e-id (->TestComponent :foo))
                      (get-components e-id))]
       (is (= (count result) 1))
-      (is (= (get-in result [TestComponent :v]) :foo))))
+      (is (= (-> result
+                 first
+                 :v) :foo))))
 
   (testing "I can get all entities with a particular component"
     (let [e-id1  (create-entity)
@@ -46,5 +48,16 @@
                      (update-component e-id TestComponent (fn [v] (->TestComponent :bar)))
                      (get-component e-id TestComponent))]
 
-      (is (= (:v result) :bar)))))
+      (is (= (:v result) :bar))))
+
+  (testing "I can remove a component"
+    (let [e-id (create-entity)
+          components (-> (create-system)
+                         (add-component e-id (->TestComponent :foo))
+                         (add-component e-id (->OtherTestComponent :bar))
+                         (remove-component e-id OtherTestComponent)
+                         (all-components))]
+      (is (= (count components) 1))
+      (is (= (class (first components)) TestComponent))))
+  )
 
