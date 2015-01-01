@@ -1,50 +1,49 @@
 (ns thenandagain.comets.system
   (:import [java.util UUID]))
 
-(defn conj-id-onto-keys [m ks id]
-  (reduce (fn [new-m k]
-            (update-in new-m [k]
-                       #(if %
-                          (conj % id)
-                          [id])))
-          m
-          ks))
-
 (defprotocol IEntityComponentSystem
-  (add-component  [system e-id k v])
+  (add-component  [system e-id c])
   (get-components [system e-id])
-  (get-component  [system e-id k] [system e-id k not-found])
-
-  (entities-with-component [system k])
-  (update-component [system e-id k f & args]))
+  (get-component  [system e-id c] [system e-id k not-found])
+  (entities-with-component [system c])
+  (all-components [system]))
 
 (defn create-entity []
   (UUID/randomUUID))
 
+(defn component-type [c]
+  (class c))
+
+(defn get-owner [component]
+  (:e-id (meta component)))
+
 (defrecord EntityComponentSystem [entity->components component->entities]
   IEntityComponentSystem
-  (add-component [system e-id k v]
-    (->EntityComponentSystem
-      (assoc-in entity->components [e-id k] v)
-      (update-in component->entities [k] #(if % (conj % e-id) [e-id]))))
+  (add-component [system e-id c]
+    (let [k (component-type c)]
+      (->EntityComponentSystem
+        (assoc-in entity->components [e-id k] (with-meta c {:e-id e-id}))
+        (update-in component->entities [k] #(if % (conj % e-id) [e-id])))))
 
   (get-components [_ e-id]
     (get entity->components e-id))
 
-  (get-component [s e-id k]
-    (get-component s e-id k nil))
+  (get-component [s e-id c]
+    (get-component s e-id c nil))
 
-  (get-component [_ e-id k not-found]
-    (get-in entity->components [e-id k] not-found))
+  (get-component [_ e-id c not-found]
+    (get-in entity->components [e-id c] not-found))
 
-  (entities-with-component [_ k]
-    (get component->entities k)))
+  (entities-with-component [_ c]
+    (get component->entities c))
 
-(defn update-component [system e-id k f & args]
+  (all-components [_]
+    (concat (vals entity->components))))
+
+(defn update-component [system e-id c f & args]
   (add-component system
                  e-id
-                 k
-                 (apply f (get-component system e-id k) args)))
+                 (apply f (get-component system e-id c) args)))
 
 (defn create-system []
   (->EntityComponentSystem {} {}))
