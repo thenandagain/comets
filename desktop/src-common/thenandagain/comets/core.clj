@@ -2,7 +2,8 @@
   (:require [play-clj.core :refer :all]
             [play-clj.ui :refer :all]
             [play-clj.g2d-physics :refer :all]
-            [play-clj.math :as math])
+            [play-clj.math :as math]
+            [thenandagain.comets.utils :as utils])
   (:import [java.util UUID]
            [com.badlogic.gdx.math Circle Polygon]))
 
@@ -76,11 +77,14 @@
   (filter :comet? entities))
 
 (defn collision-processing [entities]
-  (let [p (get-player entities)]
-    (-> entities
-        get-comets
-        (filter #()))
-    ))
+  (let [p (:hitbox (get-player entities))
+        collisions (->> entities
+                       get-comets
+                       (map :hitbox)
+                       (filter (partial utils/polygon-overlaps-circle p)))]
+    (if (> (count collisions) 0)
+      (on-gl (set-screen! comets main-screen))
+      entities)))
 
 (defn create-player [x y]
   (let [verticies (float-array [0.0 10.0, 8.0 -10.0, -8.0 -10.0])]
@@ -166,7 +170,7 @@
          (map update-position)
          update-hitboxes!
          draw-hitboxes?
-         #_collision-processing
+         collision-processing
          (render! screen)))
 
   :on-key-down
