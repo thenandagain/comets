@@ -4,10 +4,10 @@
 (defprotocol IEntityComponentSystem
   (add-component  [system e-id c])
   (get-components [system e-id])
-  (get-component  [system e-id c] [system e-id k not-found])
-  (entities-with-component [system c])
+  (get-component  [system e-id k] [system e-id k not-found])
+  (entities-with-component [system k])
   (all-components [system])
-  (remove-component [system e-id c])
+  (remove-component [system e-id k])
   (remove-entity [system e-id]))
 
 (defn create-entity []
@@ -30,37 +30,37 @@
   (get-components [_ e-id]
     (vals (get entity->components e-id)))
 
-  (get-component [s e-id c]
-    (get-component s e-id c nil))
+  (get-component [s e-id k]
+    (get-component s e-id k nil))
 
-  (get-component [_ e-id c not-found]
-    (get-in entity->components [e-id c] not-found))
+  (get-component [_ e-id k not-found]
+    (get-in entity->components [e-id k] not-found))
 
-  (entities-with-component [_ c]
-    (get component->entities c))
+  (entities-with-component [_ k]
+    (get component->entities k))
 
   (all-components [_]
     (mapcat #(vals (second %)) entity->components))
 
-  (remove-component [_ e-id c]
-    (->EntityComponentSystem (update-in entity->components  [e-id] #(dissoc % c))
-                             (update-in component->entities [c]    #(disj % e-id))))
+  (remove-component [_ e-id k]
+    (->EntityComponentSystem (update-in entity->components  [e-id] #(dissoc % k))
+                             (update-in component->entities [k]    #(disj % e-id))))
   (remove-entity [_ e-id]
-    (let [cs (map #(class (second %)) (get entity->components e-id))]
+    (let [ks (map #(class (second %)) (get entity->components e-id))]
       (->EntityComponentSystem
         (dissoc entity->components e-id)
-        (reduce (fn [c->e c]
-                  (update-in component->entities [c] #(disj % e-id)))
+        (reduce (fn [c->e k]
+                  (update-in c->e [k] #(disj % e-id)))
                 component->entities
-                cs)))))
+                ks)))))
 
-(defn update-component [system e-id c f & args]
-  (let [new-component (apply f (get-component system e-id c) args)]
-    (if (= (class new-component) c)
+(defn update-component [system e-id k f & args]
+  (let [new-component (apply f (get-component system e-id k) args)]
+    (if (= (class new-component) k)
       (add-component system e-id new-component)
       (throw (Exception.
                (str "Update function expected to return `"
-                    c
+                    k
                     "` but returned `"
                     (class new-component)
                     "`"))))))
