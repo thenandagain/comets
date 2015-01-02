@@ -88,6 +88,7 @@
                   :set-color (color :green)
                   :polygon verticies)
            :hitbox (math/polygon verticies
+                                 :set-origin 0 0
                                  :set-rotation 270
                                  :set-position x y)
            :player? true
@@ -98,17 +99,21 @@
            :thrust 0.1
            )))
 
-(defn update-hitbox [hb e]
-  (condp = (type hb))
+(defn update-hitbox [e hb]
+  (condp = (type hb)
+    Circle (do
+             (math/circle! hb :set-position (:x e) (:y e)))
+    Polygon (do
+              (math/polygon! hb :set-position (:x e) (:y e))
+              (math/polygon! hb :set-rotation (:angle e))))
+  e
   )
 
-(defn update-hitboxes [entities]
+(defn update-hitboxes! [entities]
   (map (fn [e]
          (if-let [hb (:hitbox e)]
-           (do
-             #_(hb :set-position (:x e) (:y e))
-             e)
-           e))
+           (update-hitbox e hb))
+         e)
        entities))
 
 (defn hitbox->shape [hb]
@@ -116,38 +121,52 @@
            Circle (shape :line
                          :set-color (color :red)
                          :circle (. hb x) (. hb y) (. hb radius))
-           Polygon (shape :line
+           Polygon (assoc (shape :line
                           :set-color (color :red)
-                          :polygon (. hb getVertices))
+                          :polygon (math/polygon! hb :get-vertices))
+                          :angle (math/polygon! hb :get-rotation)
+                          :x (math/polygon! hb :get-x)
+                          :y (math/polygon! hb :get-y))
            )
          :hitbox? true)
   )
 
-(defn inject-hitboxes [entities]
-  (reduce (fn [es e]
-            (if-let [hb (:hitbox e)]
-              (conj es e (hitbox->shape hb))
-              (conj es e))
-            ) [] entities))
+(def should-draw-hitboxes (atom false))
+
+(defn generate-hitbox-graphics [entities]
+  (->> entities
+       (filter :hitbox)
+       (map :hitbox)
+       (map hitbox->shape)))
+
+(defn draw-hitboxes? [entities]
+  (let [es (remove :hitbox? entities)]
+    (if @should-draw-hitboxes
+      (concat es (generate-hitbox-graphics es))
+      es)))
+
+(defn debug-print [entities]
+  (println entities)
+  entities)
+
+
 
 (defscreen main-screen
   :on-show
   (fn [screen entities]
     (update! screen :renderer (stage))
-    (concat (repeatedly 50 generate-a-comet)
-            [(create-player 100.0 100.0)]
-            ))
+    (concat (repeatedly 5 generate-a-comet)
+            [(create-player 100.0 100.0)]))
 
   :on-render
   (fn [screen entities]
     (clear!)
     (->> entities
-         (remove :hitbox?)
-         #_inject-hitboxes
-         update-hitboxes
-         #_collision-processing
          process-controls
          (map update-position)
+         update-hitboxes!
+         draw-hitboxes?
+         #_collision-processing
          (render! screen)))
 
   :on-key-down
