@@ -4,10 +4,25 @@
             [play-clj.g2d-physics :refer :all]
             [play-clj.math :as math]
             [thenandagain.comets.utils :as utils])
-  (:import [java.util UUID]
-           [com.badlogic.gdx.math Circle Polygon]))
+  (:import  [com.badlogic.gdx.math Circle Polygon]))
 
 (declare comets main-screen)
+
+(defn hitbox->shape [hb]
+  (assoc (condp = (type hb)
+           Circle (assoc (shape :line
+                         :set-color (color :red)
+                         :circle 0 0 (. hb radius))
+                         :x (. hb x)
+                         :y (. hb y))
+           Polygon (assoc (shape :line
+                          :set-color (color :red)
+                          :polygon (math/polygon! hb :get-vertices))
+                          :angle (math/polygon! hb :get-rotation)
+                          :x (math/polygon! hb :get-x)
+                          :y (math/polygon! hb :get-y))
+           )
+         :hitbox-graphic? true))
 
 (defn directional-vector [m angle]
   (let [rads (Math/toRadians angle)]
@@ -53,22 +68,21 @@
        entities))
 
 (defn generate-a-comet []
-  (let [id (UUID/randomUUID)
-        x-off (rand 200)
+  (let [x-off (rand 200)
         y-off (rand 150)
         x (+ 200.0 x-off)
         y (+ 150.0 y-off)
-        radius 30.0]
-           (assoc (shape :line
-                         :set-color (color :white)
-                         :circle 0.0 0.0 radius)
-                  :id id
-                  :hitbox (math/circle x y radius)
-                  :x x
-                  :y y
-                  :speed (math/vector-2 (- 1.5 (rand 3)) (- 1.5 (rand 3)))
-                  :angle (rand 360)
-                  :comet? true)))
+        radius 30.0
+        comet (assoc (shape :line
+                            :set-color (color :white)
+                            :circle 0.0 0.0 radius)
+                     :hitbox (math/circle x y radius)
+                     :x x
+                     :y y
+                     :speed (math/vector-2 (- 1.5 (rand 3)) (- 1.5 (rand 3)))
+                     :angle (rand 360)
+                     :comet? true)]
+    (assoc comet :hitbox-graphic (hitbox->shape (:hitbox comet)))))
 
 (defn get-player [entities]
   (some #(if (:player? %) %) entities))
@@ -87,73 +101,58 @@
       entities)))
 
 (defn create-player [x y]
-  (let [verticies (float-array [0.0 10.0, 8.0 -10.0, -8.0 -10.0])]
-    (assoc (shape :line
-                  :set-color (color :green)
-                  :polygon verticies)
-           :hitbox (math/polygon verticies
-                                 :set-origin 0 0
-                                 :set-rotation 270
-                                 :set-position x y)
-           :player? true
-           :x x
-           :y y
-           :angle 270
-           :speed (math/vector-2 0.1 0.1)
-           :thrust 0.1
-           )))
+  (let [verticies (float-array [0.0 10.0, 8.0 -10.0, -8.0 -10.0])
+        player (assoc (shape :line
+                             :set-color (color :green)
+                             :polygon verticies)
+                      :hitbox (math/polygon verticies
+                                            :set-origin 0 0
+                                            :set-rotation 270
+                                            :set-position x y)
+                      :player? true
+                      :x x
+                      :y y
+                      :angle 270
+                      :speed (math/vector-2 0.1 0.1)
+                      :thrust 0.1)]
+    (assoc player :hitbox-graphic (hitbox->shape (:hitbox player)))))
 
-(defn update-hitbox [e hb]
-  (condp = (type hb)
+(defn sync-child [p c]
+  (condp = (type c)
     Circle (do
-             (math/circle! hb :set-position (:x e) (:y e)))
+             (math/circle! c :set-position (:x p) (:y p))
+             c)
     Polygon (do
-              (math/polygon! hb :set-position (:x e) (:y e))
-              (math/polygon! hb :set-rotation (:angle e))))
-  e
-  )
+              (math/polygon! c :set-position (:x p) (:y p))
+              (math/polygon! c :set-rotation (:angle p))
+              c)
+    (assoc c
+           :x (:x p)
+           :y (:y p)
+           :angle (:angle p))))
 
-(defn update-hitboxes! [entities]
-  (map (fn [e]
-         (if-let [hb (:hitbox e)]
-           (update-hitbox e hb))
-         e)
+(defn update-children [entities]
+  (map (fn update-children-of-entity [e]
+         (reduce (fn update-each-child-key [e k]
+                   (if-let [child (get e k)]
+                     (assoc e k (sync-child e child))
+                     e))
+                 e
+                 [:hitbox :hitbox-graphic]))
        entities))
-
-(defn hitbox->shape [hb]
-  (assoc (condp = (type hb)
-           Circle (shape :line
-                         :set-color (color :red)
-                         :circle (. hb x) (. hb y) (. hb radius))
-           Polygon (assoc (shape :line
-                          :set-color (color :red)
-                          :polygon (math/polygon! hb :get-vertices))
-                          :angle (math/polygon! hb :get-rotation)
-                          :x (math/polygon! hb :get-x)
-                          :y (math/polygon! hb :get-y))
-           )
-         :hitbox? true)
-  )
 
 (def should-draw-hitboxes (atom false))
 
-(defn generate-hitbox-graphics [entities]
-  (->> entities
-       (filter :hitbox)
-       (map :hitbox)
-       (map hitbox->shape)))
-
 (defn draw-hitboxes? [entities]
-  (let [es (remove :hitbox? entities)]
-    (if @should-draw-hitboxes
-      (concat es (generate-hitbox-graphics es))
-      es)))
+  (if @should-draw-hitboxes
+    (concat entities (->> entities
+                          (map :hitbox-graphic)
+                          (remove nil?)))
+    entities))
 
 (defn debug-print [entities]
   (println entities)
   entities)
-
-
 
 (defscreen main-screen
   :on-show
@@ -165,13 +164,16 @@
   :on-render
   (fn [screen entities]
     (clear!)
-    (->> entities
-         process-controls
-         (map update-position)
-         update-hitboxes!
-         draw-hitboxes?
-         collision-processing
-         (render! screen)))
+    (let [updated-entities (->> entities
+                                process-controls
+                                (map update-position)
+                                update-children
+                                collision-processing)]
+      (->> updated-entities
+           (filter :draw!)
+           draw-hitboxes?
+           (render! screen))
+      updated-entities))
 
   :on-key-down
   (fn [screen entities]
@@ -179,7 +181,10 @@
       (key-pressed? :r)
       (on-gl (set-screen! comets main-screen))
       (key-pressed? :p)
-      (println (get-player entities)))))
+      (println (get-player entities))
+      (key-pressed? :h)
+      (reset! should-draw-hitboxes (not @should-draw-hitboxes)))
+    nil))
 
 (defgame comets
   :on-create
