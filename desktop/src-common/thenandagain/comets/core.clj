@@ -79,7 +79,7 @@
                      :hitbox (math/circle x y radius)
                      :x x
                      :y y
-                     :speed (math/vector-2 (- 1.5 (rand 3)) (- 1.5 (rand 3)))
+                     :speed (math/vector-2 (- 1 (rand 2)) (- 1 (rand 2)))
                      :angle (rand 360)
                      :comet? true)]
     (assoc comet :hitbox-graphic (hitbox->shape (:hitbox comet)))))
