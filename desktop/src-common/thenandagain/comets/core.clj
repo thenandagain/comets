@@ -39,7 +39,7 @@
   [(fn accelerate [p entities]
      (if (key-pressed? :dpad-up)
        (let [v (directional-vector (:thrust p)
-                                   (+ 90 (:angle p)))]
+                                   (:angle p))]
 
          (assoc p :speed (math/vector-2 0 0
                                         :add (:speed p)
@@ -101,18 +101,17 @@
       entities)))
 
 (defn create-player [x y]
-  (let [verticies (float-array [0.0 10.0, 8.0 -10.0, -8.0 -10.0])
+  (let [verticies (float-array [10.0 0.0, -10.0 8.0, -10.0 -8.0])
         player (assoc (shape :line
                              :set-color (color :green)
                              :polygon verticies)
                       :hitbox (math/polygon verticies
                                             :set-origin 0 0
-                                            :set-rotation 270
                                             :set-position x y)
                       :player? true
                       :x x
                       :y y
-                      :angle 270
+                      :angle 0
                       :speed (math/vector-2 0.1 0.1)
                       :thrust 0.1)]
     (assoc player :hitbox-graphic (hitbox->shape (:hitbox player)))))
