@@ -129,7 +129,7 @@
         (assoc :x sx
                :y sy
                :angle angle
-               :speed speed
+               :speed (directional-vector 8 angle)
                :hitbox (math/circle sx sy radius))
         ((fn hitbox-graphic [s] (assoc s :hitbox-graphic (hitbox->shape (:hitbox s))))))))
 
