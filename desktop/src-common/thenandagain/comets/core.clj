@@ -117,6 +117,23 @@
                       :thrust 0.1)]
     (assoc player :hitbox-graphic (hitbox->shape (:hitbox player)))))
 
+(defn generate-a-shot [player]
+  (let [radius 3
+        sx (:x player)
+        sy (:y player)
+        speed (:speed player)
+        angle (:angle player)
+        ]
+    (-> (shape :filled
+               :set-color (color :green)
+               :circle 0 0 radius)
+        (assoc :x sx
+               :y sy
+               :angle angle
+               :speed speed
+               :hitbox (math/circle sx sy radius))
+        ((fn hitbox-graphic [s] (assoc s :hitbox-graphic (hitbox->shape (:hitbox s))))))))
+
 (defn sync-child [p c]
   (condp = (type c)
     Circle (do
@@ -177,14 +194,17 @@
 
   :on-key-down
   (fn [screen entities]
-    (cond
-      (key-pressed? :r)
-      (on-gl (set-screen! comets main-screen))
-      (key-pressed? :p)
-      (println (get-player entities))
-      (key-pressed? :h)
-      (reset! should-draw-hitboxes (not @should-draw-hitboxes)))
-    nil))
+    (if (key-pressed? :space)
+      (conj entities (generate-a-shot (get-player entities)))
+      (do
+        (cond
+          (key-pressed? :r)
+          (on-gl (set-screen! comets main-screen))
+          (key-pressed? :p)
+          (println (get-player entities))
+          (key-pressed? :h)
+          (reset! should-draw-hitboxes (not @should-draw-hitboxes)))
+          nil))))
 
 (defgame comets
   :on-create
