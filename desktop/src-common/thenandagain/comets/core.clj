@@ -8,6 +8,11 @@
 
 (declare comets main-screen)
 
+(defn debug-print [entities]
+  (println entities)
+  entities)
+
+
 (defn hitbox->shape [hb]
   (assoc (condp = (type hb)
            Circle (assoc (shape :line
@@ -90,15 +95,96 @@
 (defn get-comets [entities]
   (filter :comet? entities))
 
-(defn collision-processing [entities]
-  (let [p (:hitbox (get-player entities))
-        collisions (->> entities
-                       get-comets
-                       (map :hitbox)
-                       (filter (partial utils/polygon-overlaps-circle p)))]
-    (if (> (count collisions) 0)
-      (on-gl (set-screen! comets main-screen))
+(defn collision-test-fn [e1 e2]
+  (let [ce1 (class (:hitbox e1))
+        ce2 (class (:hitbox e2))]
+    (cond
+      (and (= Circle ce1) (= Circle ce2))
+      (fn circle-overlaps-circle [e1 e2]
+        (utils/circle-overlaps-circle (:hitbox e1) (:hitbox e2)))
+
+      (and (= Polygon ce1) (= Circle ce2))
+      (fn polygon-overlaps-circle [e1 e2]
+        (utils/polygon-overlaps-circle (:hitbox e1) (:hitbox e2)))
+
+      (and (= Circle ce1) (= Polygon ce2))
+      (fn circle-overlaps-polygon [e1 e2]
+        (utils/polygon-overlaps-circle (:hitbox e2) (:hitbox e1)))
+
+      :else
+      (fn always-false [e1 e2] false))))
+
+(defn collides-with [e1 e2]
+  (let [test-fn (collision-test-fn e1 e2)]
+    (test-fn e1 e2)))
+
+(defn find-collisions-with [t entities]
+  (let [c (filter (partial collides-with t) entities)]
+    c))
+
+(defn find-collisions [entities]
+  (let [collidable (filter :hitbox entities)]
+    (loop [collisions []
+           current (first collidable)
+           remaining (rest collidable)]
+      (if (not (empty? remaining))
+        (recur
+          (concat collisions (map (fn [c] [current c]) (find-collisions-with current remaining)))
+          (first remaining)
+          (rest remaining))
+        collisions))))
+
+(defn collision-involves [f]
+  (fn [entities] (some f entities)))
+
+(def comet-involved? (collision-involves :comet?))
+(def player-involved? (collision-involves :player?))
+(def shot-involved? (collision-involves :shot?))
+
+(defn player-death? [collisions]
+  (->> collisions
+       (filter player-involved?)
+       (some comet-involved?)
+       not
+       not
+       ))
+
+(defn split-shot-comets [comet-shot-collisions entities]
+  entities)
+
+(defn remove-shot-comets [comet-shot-collisions entities]
+  (remove
+    (->> (apply concat comet-shot-collisions)
+         (filter :comet?)
+         set)
+    entities))
+
+(defn remove-used-shots [comet-shot-collisions entities]
+  (remove
+    (->> (apply concat comet-shot-collisions)
+         (filter :shot?)
+         set)
+    entities))
+
+
+(defn process-comets-hit [entities collisions]
+  (let [comet-shot-collisions (filter #(and (comet-involved? %) (shot-involved? %)) collisions)]
+    (if (> (count comet-shot-collisions) 0)
+      (->> entities
+          (split-shot-comets comet-shot-collisions)
+          (remove-shot-comets comet-shot-collisions)
+          (remove-used-shots comet-shot-collisions))
       entities)))
+
+(defn collision-processing [entities]
+  (let [collisions (find-collisions entities)]
+    (cond
+      (player-death? collisions)
+      (on-gl (set-screen! comets main-screen))
+
+      :else
+      (process-comets-hit entities collisions)
+      )))
 
 (defn create-player [x y]
   (let [verticies (float-array [10.0 0.0, -10.0 8.0, -10.0 -8.0])
@@ -130,7 +216,8 @@
                :y sy
                :angle angle
                :speed (directional-vector 8 angle)
-               :hitbox (math/circle sx sy radius))
+               :hitbox (math/circle sx sy radius)
+               :shot? true)
         ((fn hitbox-graphic [s] (assoc s :hitbox-graphic (hitbox->shape (:hitbox s))))))))
 
 (defn sync-child [p c]
@@ -165,10 +252,6 @@
                           (map :hitbox-graphic)
                           (remove nil?)))
     entities))
-
-(defn debug-print [entities]
-  (println entities)
-  entities)
 
 (defscreen main-screen
   :on-show

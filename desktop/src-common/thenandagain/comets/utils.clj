@@ -26,3 +26,6 @@
           true
           (recur (rest remaining)))
         false))))
+
+(defn circle-overlaps-circle [^Circle c1 ^Circle c2]
+  (math/intersector! :overlaps c1 c2))
