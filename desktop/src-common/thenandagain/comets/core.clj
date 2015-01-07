@@ -399,19 +399,22 @@
            (render! screen))
       updated-entities))
 
+  :on-key-typed
+  (fn [screen entities]
+    (if (and (key-pressed? :space) (< (count (filter :shot? entities)) 5))
+      (conj entities (generate-a-shot (get-player entities)))
+      entities))
+
   :on-key-down
   (fn [screen entities]
-    (if (key-pressed? :space)
-      (conj entities (generate-a-shot (get-player entities)))
-      (do
-        (cond
-          (key-pressed? :r)
-          (on-gl (set-screen! comets main-screen))
-          (key-pressed? :p)
-          (println (get-player entities))
-          (key-pressed? :h)
-          (reset! should-draw-hitboxes (not @should-draw-hitboxes)))
-          nil))))
+    (cond
+      (key-pressed? :r)
+      (on-gl (set-screen! comets main-screen))
+      (key-pressed? :p)
+      (println (get-player entities))
+      (key-pressed? :h)
+      (reset! should-draw-hitboxes (not @should-draw-hitboxes)))
+    entities))
 
 (defgame comets
   :on-create

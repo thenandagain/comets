@@ -7,4 +7,4 @@
 (defn -main
   []
   (LwjglApplication. comets "thenandagain/comets" 800 600)
-  (Keyboard/enableRepeatEvents true))
+  #_(Keyboard/enableRepeatEvents true))
