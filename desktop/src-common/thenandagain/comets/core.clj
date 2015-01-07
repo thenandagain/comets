@@ -361,9 +361,7 @@
   (reduce (fn [es e]
             (cond
               (off-screen? e)
-              (do
-                (println (bounding-box-size e) (select-keys e [:x :y]))
-                es)
+              es
 
               (should-mirror? e)
               (if (:mirror e)
