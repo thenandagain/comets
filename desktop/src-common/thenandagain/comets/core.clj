@@ -284,6 +284,96 @@
                           (remove nil?)))
     entities))
 
+(defn bounding-box-size [e]
+  (let [hb (:hitbox e)]
+    (condp = (type hb)
+      Circle (math/vector-2 (. hb radius) (. hb radius))
+      Polygon (let [bb (. hb getBoundingRectangle)]
+                (math/vector-2 (. bb width) (. bb height)))
+      (math/vector-2 0 0))))
+
+(defn should-mirror-x? [e]
+  (let [width (-> (bounding-box-size e)
+                  x
+                  (/ 2))]
+    (or (< (- (:x e) width) 0)
+        (> (+ (:x e) width) (game :width)))))
+
+(defn should-mirror-y? [e]
+  (let [height (-> (bounding-box-size e)
+                  y
+                  (/ 2))]
+    (or (< (- (:y e) height) 0)
+        (> (+ (:y e) height) (game :height)))))
+
+(defn should-mirror? [e]
+  (or (should-mirror-x? e)
+      (should-mirror-y? e)))
+
+(defn off-screen? [e]
+  (let [bb-size (bounding-box-size e)
+        hw (/ (x bb-size) 1.0)
+        hh (/ (y bb-size) 1.0)]
+    (or (< (+ (:x e) hw) 0)
+        (< (+ (:y e) hh) 0)
+        (> (- (:x e) hw) (game :width))
+        (> (- (:y e) hh) (game :height)))))
+
+(defn min-minus-max [a1 a2]
+  (- (min a1 a2) (max a1 a2)))
+
+(defn clone-comet [c]
+  (-> (select-keys c [:x :y :radius :speed])
+      generate-a-comet))
+
+(defn mirrored-x [c]
+  (let [half-width (-> (bounding-box-size c)
+                       x
+                       (/ 2))]
+    (if (< (:x c) (/ (game :width) 2))
+      (+ (game :width) (- (:x c)) half-width)
+      (+ (- (game :width)) (:x c) half-width))))
+
+(defn mirrored-y [c]
+  (let [half-height (-> (bounding-box-size c)
+                       y
+                       (/ 2))]
+    (if (< (:y c) (/ (game :height) 2))
+      (+ (game :height) (- (:y c)) half-height)
+      (+ (- (game :height)) (:y c) half-height))))
+
+(defn mirror [e]
+  (-> (cond
+        (:comet? e) (clone-comet e))
+      ((fn [ce]
+         (if (should-mirror-x? e)
+           (assoc ce :x (mirrored-x e))
+           ce)))
+      ((fn [ce]
+        (if (should-mirror-y? e)
+          (assoc ce :y (mirrored-y e))
+          ce)))))
+
+(defn wrap-around-mirroring [entities]
+  (reduce (fn [es e]
+            (cond
+              (off-screen? e)
+              (do
+                (println (bounding-box-size e) (select-keys e [:x :y]))
+                es)
+
+              (should-mirror? e)
+              (if (:mirror e)
+                (conj es e)
+                (let [mc (mirror e)]
+                  (conj es (assoc e :mirror mc) (assoc mc :mirror e))))
+
+              :else
+              (conj es (dissoc e :mirror))))
+          []
+          entities)
+  )
+
 (defscreen main-screen
   :on-show
   (fn [screen entities]
@@ -295,6 +385,7 @@
   (fn [screen entities]
     (clear!)
     (let [updated-entities (->> entities
+                                wrap-around-mirroring
                                 process-controls
                                 (map update-position)
                                 update-children
