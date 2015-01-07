@@ -4,7 +4,7 @@
             [play-clj.g2d-physics :refer :all]
             [play-clj.math :as math]
             [thenandagain.comets.utils :as utils])
-  (:import  [com.badlogic.gdx.math Circle Polygon]))
+  (:import  [com.badlogic.gdx.math Circle Polygon Vector2]))
 
 (declare comets main-screen)
 
@@ -32,6 +32,11 @@
 (defn directional-vector [m angle]
   (let [rads (Math/toRadians angle)]
     (math/vector-2 (* m (Math/cos rads)) (* m (Math/sin rads)))))
+
+(defn speed-to-angle [v]
+  (. v angle))
+
+(defn magnitude [v])
 
 (defn update-position [e]
   (if-let [speed (:speed e)]
@@ -72,22 +77,24 @@
            e))
        entities))
 
-(defn generate-a-comet []
-  (let [x-off (rand 200)
-        y-off (rand 150)
-        x (+ 200.0 x-off)
-        y (+ 150.0 y-off)
-        radius 30.0
-        comet (assoc (shape :line
-                            :set-color (color :white)
-                            :circle 0.0 0.0 radius)
-                     :hitbox (math/circle x y radius)
-                     :x x
-                     :y y
-                     :speed (math/vector-2 (- 1 (rand 2)) (- 1 (rand 2)))
-                     :angle (rand 360)
-                     :comet? true)]
-    (assoc comet :hitbox-graphic (hitbox->shape (:hitbox comet)))))
+(defn generate-a-comet
+  ([] (generate-a-comet {}))
+  ([opts]
+   (let [x (get opts :x (rand 800)) ; get screen width?
+         y (get opts :y (rand 600)) ; get screen height?
+         radius (get opts :radius 30.0)
+         comet-color (get opts :color (color :white))
+         speed (get opts :speed (math/vector-2 (- 1 (rand 2)) (- 1 (rand 2))))
+         comet (assoc (shape :line
+                             :set-color comet-color
+                             :circle 0.0 0.0 radius)
+                      :hitbox (math/circle x y radius)
+                      :radius radius
+                      :x x
+                      :y y
+                      :speed speed
+                      :comet? true)]
+     (assoc comet :hitbox-graphic (hitbox->shape (:hitbox comet))))))
 
 (defn get-player [entities]
   (some #(if (:player? %) %) entities))
@@ -149,13 +156,34 @@
        not
        ))
 
+(defn select-from-collisions [f collisions]
+  (->> collisions
+       (apply concat)
+       (filter f)))
+
+(defn clone-and-rotate [v d]
+  (doto (new Vector2 v)
+    (.rotate d)
+    (.scl 1.2 1.2)))
+
+(defn split-comet [c]
+  (let [angle (speed-to-angle (:speed c))
+        new-radius (* 0.75 (:radius c))
+        new-speeds (map (partial clone-and-rotate (:speed c)) [20 -20])]
+    (map (fn [speed] (generate-a-comet {:speed speed
+                                        :x (:x c)
+                                        :y (:y c)
+                                        :radius new-radius})) new-speeds)))
+
 (defn split-shot-comets [comet-shot-collisions entities]
-  entities)
+  (concat entities (->> comet-shot-collisions
+                        (select-from-collisions :comet?)
+                        (mapcat split-comet))))
 
 (defn remove-shot-comets [comet-shot-collisions entities]
   (remove
-    (->> (apply concat comet-shot-collisions)
-         (filter :comet?)
+    (->> comet-shot-collisions
+         (select-from-collisions :comet?)
          set)
     entities))
 
@@ -166,14 +194,17 @@
          set)
     entities))
 
+(defn remove-tiny-comets [entities]
+  (remove #(and (:comet? %) (<= (:radius %) 10)) entities))
 
 (defn process-comets-hit [entities collisions]
   (let [comet-shot-collisions (filter #(and (comet-involved? %) (shot-involved? %)) collisions)]
     (if (> (count comet-shot-collisions) 0)
       (->> entities
-          (split-shot-comets comet-shot-collisions)
-          (remove-shot-comets comet-shot-collisions)
-          (remove-used-shots comet-shot-collisions))
+           (split-shot-comets comet-shot-collisions)
+           (remove-shot-comets comet-shot-collisions)
+           (remove-used-shots comet-shot-collisions)
+           remove-tiny-comets)
       entities)))
 
 (defn collision-processing [entities]
