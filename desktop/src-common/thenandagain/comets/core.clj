@@ -181,11 +181,12 @@
                         (mapcat split-comet))))
 
 (defn remove-shot-comets [comet-shot-collisions entities]
-  (remove
-    (->> comet-shot-collisions
-         (select-from-collisions :comet?)
-         set)
-    entities))
+  (let [comet-set (->> comet-shot-collisions
+                       (select-from-collisions :comet?)
+                       set)]
+    (remove
+      #(or (comet-set %) (comet-set (:mirror %)))
+      entities)))
 
 (defn remove-used-shots [comet-shot-collisions entities]
   (remove
@@ -217,19 +218,19 @@
       (process-comets-hit entities collisions)
       )))
 
-(defn create-player [x y]
+(defn create-player [opts]
   (let [verticies (float-array [10.0 0.0, -10.0 8.0, -10.0 -8.0])
         player (assoc (shape :line
                              :set-color (color :green)
                              :polygon verticies)
                       :hitbox (math/polygon verticies
                                             :set-origin 0 0
-                                            :set-position x y)
+                                            :set-position (:x opts) (:y opts))
                       :player? true
-                      :x x
-                      :y y
-                      :angle 0
-                      :speed (math/vector-2 0.1 0.1)
+                      :x (:x opts)
+                      :y (:y opts)
+                      :angle (get opts :angle 0)
+                      :speed (get opts :speed (math/vector-2 0.1 0.1))
                       :thrust 0.1)]
     (assoc player :hitbox-graphic (hitbox->shape (:hitbox player)))))
 
@@ -344,7 +345,9 @@
 
 (defn mirror [e]
   (-> (cond
-        (:comet? e) (clone-comet e))
+        (:comet? e) (clone-comet e)
+        (:shot? e) (generate-a-shot e)
+        (:player? e) (create-player e))
       ((fn [ce]
          (if (should-mirror-x? e)
            (assoc ce :x (mirrored-x e))
@@ -379,7 +382,7 @@
   (fn [screen entities]
     (update! screen :renderer (stage))
     (concat (repeatedly 5 generate-a-comet)
-            [(create-player 100.0 100.0)]))
+            [(create-player {:x 100.0 :y 100.0})]))
 
   :on-render
   (fn [screen entities]
