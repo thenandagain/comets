@@ -80,8 +80,8 @@
 (defn generate-a-comet
   ([] (generate-a-comet {}))
   ([opts]
-   (let [x (get opts :x (rand 800)) ; get screen width?
-         y (get opts :y (rand 600)) ; get screen height?
+   (let [x (get opts :x (rand (game :width))) ; get screen width?
+         y (get opts :y (rand (game :height))) ; get screen height?
          radius (get opts :radius 30.0)
          comet-color (get opts :color (color :white))
          speed (get opts :speed (math/vector-2 (- 1 (rand 2)) (- 1 (rand 2))))
