@@ -378,7 +378,7 @@
 (defscreen main-screen
   :on-show
   (fn [screen entities]
-    (update! screen :renderer (stage))
+    (update! screen :renderer (stage) :camera (orthographic))
     (concat (repeatedly 5 generate-a-comet)
             [(create-player {:x (/ (game :width) 2) :y (/ (game :height) 2)})]))
 
@@ -396,6 +396,10 @@
            draw-hitboxes?
            (render! screen))
       updated-entities))
+
+  :on-resize
+  (fn  [screen entities]
+    )
 
   :on-key-typed
   (fn [screen entities]
