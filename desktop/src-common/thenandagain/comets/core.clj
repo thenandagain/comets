@@ -380,7 +380,7 @@
   (fn [screen entities]
     (update! screen :renderer (stage))
     (concat (repeatedly 5 generate-a-comet)
-            [(create-player {:x 100.0 :y 100.0})]))
+            [(create-player {:x (/ (game :width) 2) :y (/ (game :height) 2)})]))
 
   :on-render
   (fn [screen entities]
